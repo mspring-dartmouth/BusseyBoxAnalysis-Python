@@ -1,4 +1,4 @@
-__version__ = '0.1a1'
+__version__ = '0.1a2'
 
 from ._busboxanalysis import (moving_average,
                               enumerate2,
@@ -7,6 +7,7 @@ from ._busboxanalysis import (moving_average,
                               batch_read_files,
                               display_all_variables,
                               get_final_values,
-                              concatenate_values_over_days)
+                              concatenate_values_over_days, 
+                              extract_timestamps)
 from . import freeforaging
 from . import fivechoice

@@ -97,7 +97,7 @@ def display_all_variables(raw_input_dataframe):
         DOCSTRING!!
     '''
     print(set(raw_input_dataframe.Item_Name))
-    return np.array(set(raw_input_dataframe.Item_Name))
+    return list(set(raw_input_dataframe.Item_Name))
 
 def get_final_values(raw_input_dataframe, metrics = ['_Trial_Counter']):
     '''
@@ -127,3 +127,37 @@ def concatenate_values_over_days(animal_dictionary, dates, outer_metrics = ['_Tr
         single_day_performance =  get_final_values(animal_dictionary[date], metrics=outer_metrics)
         cross_day_output.loc[(day, outer_metrics)] = single_day_performance.values
     return cross_day_output
+
+def extract_timestamps(raw_input_dataframe, target, wide=True):
+    '''
+       DOCSTRING
+    '''
+
+    # Target may be either a single value or a list
+    if isinstance(target, str):
+        target = [target] # Turn it into a list for iteration
+
+    max_len = raw_input_dataframe.loc[raw_input_dataframe.Item_Name.isin(target)].shape[0]
+    ts_df = pd.DataFrame(index=range(max_len), columns=target)
+
+    for t in target:
+        evnt_ts = raw_input_dataframe.loc[raw_input_dataframe.Item_Name==t, 'Evnt_Time'].values
+        ts_df.loc[range(evnt_ts.size), t] = evnt_ts
+
+    ts_df.dropna(how='all', axis=0, inplace=True)
+
+    if wide:
+        return ts_df
+    else:
+        long_df = pd.DataFrame(index = range(ts_df.size), columns = ['Time', 'Label'])
+        idx_start = 0
+        for col in ts_df.columns:
+            real_numbers = ts_df.loc[:, col].dropna(how='any', axis=0)
+            idx_end = (idx_start + real_numbers.size)-1
+            long_df.loc[idx_start:idx_end, 'Time'] = real_numbers.values
+            long_df.loc[idx_start:idx_end, 'Label'] = col
+            idx_start=idx_end+1
+
+        long_df.dropna(how='any', axis=0, inplace=True)
+        ordered_events = pd.Series(index=long_df.Time.astype('float'), data=long_df.Label.values)
+        return ordered_events.sort_index()
