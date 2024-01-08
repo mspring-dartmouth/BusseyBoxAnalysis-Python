@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import natsort
 from busboxanalysis import get_final_values, extract_timestamps
 
