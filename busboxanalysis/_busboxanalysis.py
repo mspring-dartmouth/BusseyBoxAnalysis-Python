@@ -54,7 +54,7 @@ def read_raw_file(input_file):
     first_col = pd.read_csv(input_file, usecols=['Name'], nrows=50, skip_blank_lines=False)
     data_start_idx = first_col[first_col.Name=='Evnt_Time'].index[0]   
     
-    session_info = pd.read_csv(input_file, nrows=data_start_idx-1, index_col=0) 
+    session_info = pd.read_csv(input_file, nrows=data_start_idx-1, index_col=0, on_bad_lines='skip') # This will only cause problems if Animal ID, Date, or Environment are bad.  
     mouse_id = session_info.loc['Animal ID', 'Value']
     date = re.search('\d{1,2}/\d{1,2}/\d{4}', session_info.loc['Date/Time', 'Value']).group(0)
     box = session_info.loc['Environment'].values
