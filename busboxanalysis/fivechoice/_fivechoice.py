@@ -4,11 +4,17 @@ import natsort
 from busboxanalysis import get_final_values, extract_timestamps
 
 
-# Turn this into a function to summarize responses into each window for a given animal on a given day. 
+# Turn this into a function to  
 
 def summarize_responses(raw_input_dataframe):
     '''
-        DOCSTRING
+        Summarizes responses into each window for a given animal on a given day.
+        :input raw_input_dataframe: A dataframe output by busboxanalysis.read_raw_file/busboxanalysis.batch_read_files
+        :return tuple: This function outputs a tuple of the following, in order:
+        :return response_distribution: a pandas Dataframe with a multi-index: response category X response window 
+                                       and values: no. of responses
+        :return prem_response_count: Integer count of premature responses. 
+        :return total_trials: Integer count of trials completed. 
     '''
     m_index = pd.MultiIndex.from_product([['Correct', 'Incorrect', 'Omission'], range(1, 6)])
     m_index.set_names(['Response', 'Window'], inplace=True)
@@ -29,7 +35,16 @@ def summarize_responses(raw_input_dataframe):
 
 def retrieve_touch_times(raw_input_dataframe, return_trial_dict = True, return_latencies = True):
     '''
-        DOCSTRING
+        Retrieves and categorizes touch times for a single dataframe.
+        :input raw_input_dataframe: A dataframe output by busboxanalysis.read_raw_file/busboxanalysis.batch_read_files
+        :input return_trial_dict: Toggles whether or not to return trial_touch_dict.
+        :input return_latencies: Toggles whether to return latency_df
+        :return touches: A pandas DataFrame with index: indices of touches, columns: Time of touch and Type of Touch.
+        :return trial_touch_dict: A dictionary that contains all touch types and times for each trial:
+                                  Key: trial number, Value: dict{Key: Touch category, Value: array of timestamps}
+        :return latency_df: A DataFrame with index: trial number, 
+                            and columns [Start Time, Response Time, Response Latency, and Response Type].
+                            IGNORES PREMATURE RESPONSES
     '''
 
     # Pull indices of touch events. 
