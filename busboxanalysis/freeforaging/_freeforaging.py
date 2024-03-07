@@ -52,8 +52,8 @@ def summarize_behavior(raw_input_dataframe, return_absolute_for_right = True):
         or "summarize_relative_right_side_value" for a single animal on a single day.
         :param raw_input_dataframe: a pandas dataframe created from a single Bussey-Output .csv containing raw session data.
         :param return_absolute_for_right: Toggles whether to call summarize_right_side_reward_probability with absolute_value=True or absolute_value=False
-        :return response history: A binary list in which 0 corresponds to a left-sided choice and 1 to a right-sided choice.
-        :return outcome history: A binary list in which 0 corresponds to a reward omission and 1 to a reward delivery.
+        :return response_history: A binary list in which 0 corresponds to a left-sided choice and 1 to a right-sided choice.
+        :return outcome_history: A binary list in which 0 corresponds to a reward omission and 1 to a reward delivery.
         :return right_side_history: A list containing the requested reward probabilities associated with a right-sided choice
     '''
     
@@ -86,8 +86,8 @@ def concatenate_behavioral_days(animal_dictionary, dates, return_absolute_for_ri
         :param return_absolute_for_right: Toggles whether to call summarize_right_side_reward_probability or summarize_relative_right_side_value
         :param smooth_order: Desired # of points to use in calculation of moving average.
         :return trials: List of trial numbers 1- n_trials.
-        :return choice_history history: A binary list in which 0 corresponds to a left-sided choice and 1 to a right-sided choice.
-        :return outcome history: A binary list in which 0 corresponds to a reward omission and 1 to a reward delivery.
+        :return choice_history: A binary list in which 0 corresponds to a left-sided choice and 1 to a right-sided choice.
+        :return outcome_history: A binary list in which 0 corresponds to a reward omission and 1 to a reward delivery.
         :return block_history: A list containing the requested reward probabilities associated with a right-sided choice
     '''    
     choice_history = []
@@ -100,55 +100,3 @@ def concatenate_behavioral_days(animal_dictionary, dates, return_absolute_for_ri
         block_history.extend(func_return[2][smooth_order-1:])
     trials = np.arange(1, len(choice_history)+1)
     return trials, choice_history, outcome_history, block_history
-
-
-
-
-
-
-# #####################################################RL FUNCTIONS###########################################################
-# def update_value(v_last, r_last, alpha=0.1):
-#     '''
-#         The R-W value function. 
-#         :param v_last: the expected value of an option prior to the last time it was selected.
-#         :param r_last: the reward outcome of the same option the last time it was selected.
-#         :param alpha: the learning rate. That is, how much of the prediction error should be applied to updating an option's value
-#         :return v: the expected value of an option in the future. 
-#     '''
-#     pe = alpha*(r_last-v_last)
-#     v = v_last + pe
-#     return v
-
-# def make_selection(option_values, beta=3):
-#     '''
-#         A choice function for 2 options based on a soft-max operation.
-#         :param option_values: an array containing the expected values of the two options, [0] and [1].
-#         :param beta: temperature of the soft-max operation (float). 
-#                      High values produce greater exploitation of preferred options, while lower values produce exploration.
-#         :return x, p: return a choice 0 or 1, and the probability associated with choosing either option (ordered 0, 1).
-#     '''
-#     ev = np.exp(beta*option_values)
-#     sev = sum(np.exp(beta*option_values))
-#     p = ev/sev
-    
-#     if random.random()<p[0]:
-#         return 0, p
-#     else:
-#         return 1, p
-
-# def grid_search(alpha_range, beta_range, choice_history, outcome_history, initial_values = np.array([0.5, 0.5])):
-#     '''
-#         DOCSTRING goes here!
-#     '''
-#     search_grid = pd.DataFrame(index=alpha_range, columns = beta_range)
-#     for a, b in itertools.product(alpha_range, beta_range):
-#         values = initial_values.copy()
-#         PP = []
-#         for t, (c, o) in enumerate(zip(choice_history, outcome_history)):
-#             mod_choice, p = make_selection(values, beta=b) #Choose
-#             PP.append(p[c]) # Record P(mod_choice)
-#             values[c] = update_value(values[c], o, alpha=a) # Update value of chosen otpion based on outcome
-        
-#         # Calculate likelihood of all choices given the outcomes giving the current alpha,beta.
-#         search_grid.loc[a, b] = np.prod(PP)
-#     return search_grid
