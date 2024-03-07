@@ -70,8 +70,11 @@ def retrieve_touch_times(raw_input_dataframe, return_trial_dict = True, return_l
                     t_type = 'IncorrectResponsePerseveration'
                 elif raw_input_dataframe.loc[touch+1, 'Item_Name'] == 'Perseverative Response to Correct ':
                     t_type = 'CorrectResponsePerseveration'
-
-        # At the end of the nested for-loops, record the category. 
+        elif touch_code == 1:
+        	t_type = 'Pre-Session'
+       	else:
+       		t_type = 'None'
+        # At the end of the nested if statements, record the category. 
         touches.loc[df_idx, 'TouchType'] = t_type
 
     # If return_latencies==True, then the whole function needs to run.
