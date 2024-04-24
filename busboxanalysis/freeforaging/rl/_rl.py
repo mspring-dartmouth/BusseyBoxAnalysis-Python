@@ -79,7 +79,7 @@ def update_value_fq(qs, a, o, a_1, a_2, k_1, k_2):
         
     return new_qs
 
-def param_fit_long_form(choice_history, outcome_history, inital_values, params):
+def param_fit_long_form(choice_history, outcome_history, initial_values, params):
     param_names = list(params.keys())
 
     n_iterations = np.prod([len(params[i]) for i in params])
