@@ -66,6 +66,48 @@ def grid_search(alpha_range, beta_range, choice_history, outcome_history, initia
     return search_grid
 
 
+def update_value_fq(qs, a, o, a_1, a_2, k_1, k_2):
+    new_qs = qs.copy()
+    for i in [0, 1]:
+        if a==i:
+            if o==1:
+                new_qs[i] = (1-a_1)*qs[i]+a_1*k_1
+            else:
+                new_qs[i] = (1-a_1)*qs[i] - a_1*k_2
+        else:
+            new_qs[i] = (1-a_2)*qs[i]
+        
+    return new_qs
+
+def param_fit_long_form(choice_history, outcome_history, inital_values, params):
+    param_names = list(params.keys())
+
+    n_iterations = np.prod([len(params[i]) for i in params])
+    search_output = pd.DataFrame(index = range(n_iterations), columns = param_names+['LogSum'])
+    
+    test_params = {'a1': 0, 'a2': 0, 'k1': 0, 'k2': 0, 'b': 1}
+    n_params_included = sum([p in param_names for p in test_params])
+    if n_params_included < len(param_names):
+        raise KeyError('Acceptable parameter names include a1, a2, k1, k2, and b')
+
+    for i, param_combo in enumerate(itertools.product(*[params[i] for i in param_names])):
+        values = initial_values.copy()
+        for p_order, p_name in enumerate(param_names):
+            test_params[p_name] = param_combo[p_order]
+        PP = []
+        for c, o in zip(choice_history, outcome_history):
+            mod_choice, p = make_selection(values, test_params['b'])
+
+            PP.append(p[c])
+
+            values = update_value_fq(values, c, o, 
+                                     test_params['a1'], test_params['a2'],
+                                     test_params['k1'], test_params['k2'])
+        search_output.loc[i, 'LogSum'] = numpy.log(PP).sum()
+        for p_name, p_val in zip(param_names, param_combo):
+            search_output.loc[i, p_name] = p_val
+    return search_output
+
 # Currently unused, given that gamma has been removed from make_selection().
 # def grid_search_3param(alpha_range, beta_range, gamma_range, choice_history, outcome_history, initial_values = numpy.array([0.5, 0.5])):
 #     search_grid = numpy.empty([gamma_range.size, alpha_range.size, beta_range.size])
