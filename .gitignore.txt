@@ -1,4 +1,4 @@
 /BusBoxAnalysis.egg-info
-/__pycache__
-/*/__pychache__
+/__pycache__/
+/*/__pychache__/
 *.pyc
