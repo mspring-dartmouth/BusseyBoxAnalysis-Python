@@ -33,18 +33,20 @@ class RL_mod(object):
         else:
             return 1, p
     
-    def update_value_fq(self, qs, a, o, a_1, a_2, k_1, k_2):
+    def update_value_dfq_static(self, qs, a, o, model_params):
         ''' Updates action value (q) for both possible choices according to a Q-Learning model with differential forgetting
             based on a given action and outcome in trial T. 
         :param qs: Array. Values for both choices at trial T-1. Left side value: index 0, Right side: 1. 
         :param a: integer. Side chosen on trial T. Left: 0, Right: 1. 
         :param o: integer. Outcome of trial T. Reward: 1. Nothing: 0. 
-        :param a_1: float. alpha1. Forgetting rate for chosen action. High=recency bias. 
-        :param a_2: float. alpha2. Forgetting rate for non-selected action. 
-        :param k_1: float. kappa1. Strength of reward on action value. 
-        :param k_2: float. kappa2. Strength of omission on action value. 
+        :param model_params: tuple containing the following values:
+            a_1: float. alpha1. Forgetting rate for chosen action. High=recency bias. 
+            a_2: float. alpha2. Forgetting rate for non-selected action. 
+            k_1: float. kappa1. Strength of reward on action value. 
+            k_2: float. kappa2. Strength of omission on action value. 
         :return new_qs: Array. Updated action values. 
         '''
+        a_1, a_2, k_1, k_2 = model_params
         new_qs = qs.astype('float')
         for i in [0, 1]:
             qi = new_qs[i]
@@ -56,22 +58,91 @@ class RL_mod(object):
             else:
                 new_qs[i] = (1-a_2)*qi
         return new_qs  
+
+    def update_value_fq_static(self, qs, a, o, model_params):
+        ''' Updates action value (q) for both possible choices according to a Q-Learning model with CONSTANT forgetting
+            based on a given action and outcome in trial T. This is equivalent to dfq_static with a_1=a_2. 
+        :param qs: Array. Values for both choices at trial T-1. Left side value: index 0, Right side: 1. 
+        :param a: integer. Side chosen on trial T. Left: 0, Right: 1. 
+        :param o: integer. Outcome of trial T. Reward: 1. Nothing: 0. 
+        :param model_params: tuple containing the following values:
+            a_1: float. alpha1. Forgetting rate for all actions. 
+            k_1: float. kappa1. Strength of reward on action value. 
+            k_2: float. kappa2. Strength of omission on action value. 
+        :return new_qs: Array. Updated action values. 
+        '''
+        a_1, k_1, k_2 = model_params
+        new_qs = qs.astype('float')
+        for i in [0, 1]:
+            qi = new_qs[i]
+            if a==i:
+                if o==1:
+                    new_qs[i] = ((1-a_1) * qi) + (a_1*k_1)
+                else:
+                    new_qs[i] = (1-a_1)*qi - (a_1*k_2)
+            else:
+                new_qs[i] = (1-a_1)*qi
+        return new_qs  
+
     
-    def calc_Qs(self, params, return_qs = False):
-        a1, a2, k1, k2, b = params
+    def calc_Qs(self, params, value_function, return_qs = False):
+        '''
+            Calculates action values, choice probabilties, and the -logSum based on self.choices, self.outcomes, and 
+            a given value_function with set input parameters. 
+            :param params: a tuple containing model parameters required for value_function.
+            :param value_function: Function to use for calculating Q values based on a given action and outcome.
+            :param return_qs: Boolean. Toggles whether function will return Qs and choice probabilities or the -logSum
+            :return value_history: Array. n X 2 array where n=# trials. Rows correspond to values on individual trials, 
+                                   column 0 corresponds to action value for left choice, column 1 to action value for right choice.
+            :return PP: List. estimated model probabilities asssociated with an animal's actual choices. 
+            :return -logSum: A method used for assessing the best fitting parameters for a given model. 
+
+        '''
+        self.current_model_params = params[:]
         values = numpy.array([0, 0])
-        PP = []
-        value_history = numpy.zeros([self.choices.size, 2])
+        self.PP = []
+        b = params[-1]
+        self.value_history = numpy.zeros([self.choices.size, 2])
         for t, c, o in zip(range(self.choices.size), self.choices, self.outcomes):
             mod_choice, p = self.make_selection(values, b)
-            PP.append(p[c])
+            self.PP.append(p[c])
 
-            values = self.update_value_fq(values, c, o, a1, a2, k1, k2)
-            value_history[t] = values
+            values = value_function(values, c, o, params[:-1])
+            self.value_history[t] = values
         if return_qs:
-            return value_history, PP
+            return self.value_history, self.PP
         else:
-            return -1*numpy.log(PP).sum()
+            return -1*numpy.log(self.PP).sum()
+
+def calc_norm_likelihood(predicted_probabilities):
+    '''
+        Calculates a normalized likelihood score for a set  of choice probabilities across trials within multiple sessions. 
+        :param predicted_probabilities: a list of lists, where each sublist contains trial-by-trial model-estimated choice-probabilities
+                                        for a given session.
+        :return: The normalized likelihood (between 0-1) that the provided probabilities come from a distribution created by selected parameters. 
+    '''
+    
+
+    multisession = all(isinstance(elem, list) for elem in predicted_probabilities)
+    # returns True when predicted_probabilities is a list of lists 
+    # returns False when predicted_probabilities is a list for a single session.
+
+
+    if multisession:
+        internal_probabilities = [] 
+        for session_probabilities in predicted_probabilities:
+            internal_probabilities.append(calc_norm_likelihood(session_probabilities))
+        return calc_norm_likelihood(internal_probabilities)
+    else:
+        return numpy.prod(predicted_probabilities)**(1/len(predicted_probabilities))
+
+
+
+
+
+
+
+
 
 
 def update_value(v_last, r_last, alpha=0.1):
