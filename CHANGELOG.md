@@ -1,3 +1,5 @@
+#### VERSION 0.1a5 ####
+	- Created module for analyzing autoshaping data from Bussey Boxes. As yet, it is uncommented and not fully tested. 
 #### VERSION 0.1a4 ####
 	- Complete overhaul of rl module. All current functionality is not contained within a Class object. The included model is now based on Q-learning with differential forgetting (https://doi.org/10.1523/jneurosci.6157-08.2009) and a soft-max decision function with variable temperature (this latter part has remained the same). The best-fit parameters are meant to be determined in conjuction with scipy.optimize.minimum (I may make this internal to the class at some point, but it is not yet), rather than by a grid search based method. Once I am comfortable with this implementation, I will remove the previous functions that are outside of the RL_mod class. 
 #### VERSION 0.1a3 ####

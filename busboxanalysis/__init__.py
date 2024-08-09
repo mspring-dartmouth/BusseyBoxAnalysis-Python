@@ -1,4 +1,4 @@
-__version__ = '0.1a4'
+__version__ = '0.1a5'
 
 from ._busboxanalysis import (moving_average,
                               enumerate2,
@@ -11,3 +11,4 @@ from ._busboxanalysis import (moving_average,
                               extract_timestamps)
 from . import freeforaging
 from . import fivechoice
+from . import autoshape

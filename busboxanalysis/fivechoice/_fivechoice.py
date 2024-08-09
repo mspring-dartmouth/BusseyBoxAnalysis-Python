@@ -4,7 +4,6 @@ import natsort
 from busboxanalysis import get_final_values, extract_timestamps
 
 
-# Turn this into a function to  
 
 def summarize_responses(raw_input_dataframe):
     '''
