@@ -70,5 +70,5 @@ def summarize_cs_responding(raw_input_dataframe, cs_times, cs_assignments):
                 behavior_slice = cs_presentation_slice[cs_presentation_slice.Item_Name==input_name]
                 entries, exits = summarize_trial_behavior(behavior_slice, (on, off), input_name)
                 responding_summary[cs][behavior].loc[cs_num, 'Count'] = entries.size
-                responding_summary[cs][behavior].loc[cs_num, 'Mean_Dur'] = np.mean(exits-entries)
+                responding_summary[cs][behavior].loc[cs_num, 'Mean_Dur'] = np.sum(exits-entries)
     return responding_summary
