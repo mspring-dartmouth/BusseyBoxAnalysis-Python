@@ -1,3 +1,5 @@
+#### VERSION 0.1b  ####
+	- Autoshaping module is undergoing testing to reanalyze older data. 
 #### VERSION 0.1a5 ####
 	- Created module for analyzing autoshaping data from Bussey Boxes. As yet, it is uncommented and not fully tested. 
 #### VERSION 0.1a4 ####

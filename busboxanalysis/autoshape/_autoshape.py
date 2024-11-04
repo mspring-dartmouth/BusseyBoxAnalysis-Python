@@ -31,8 +31,9 @@ def summarize_trial_behavior(trial_slice, slice_borders, target_item_name = 'Tra
     # If there are no events, skip to the end.
     if exits.size + entries.size == 0:
         pass
-    # If there is only one event, filling in the boundary timestamp as done below will not work.
-    elif exits.size + entries.size == 1:
+
+    # If either event is empty, filling in the boundary timestamp as done below will not work.
+    elif min([exits.size, entries.size]) == 0:
         if exits.size == 0:
             exits = np.array([off]) # One unended entry gets capped with the end of the CS.
         else:
@@ -78,7 +79,7 @@ def summarize_trial_behavior(trial_slice, slice_borders, target_item_name = 'Tra
 
 
 # Count Sign Tracking based on touch counts
-def summarize_cs_responding_touchbased(raw_input_dataframe, cs_times, cs_assignments):
+def summarize_cs_responding(raw_input_dataframe, cs_times, cs_assignments):
     responding_summary = {'plus': {}, 'minus': {}}
     
     simple_track = create_touch_tracking(raw_input_dataframe)
