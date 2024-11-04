@@ -58,8 +58,30 @@ def summarize_trial_behavior(trial_slice, slice_borders, target_item_name = 'Tra
     return(entries, exits)
 
 
-def summarize_cs_responding(raw_input_dataframe, cs_times, cs_assignments):
+
+# Deprecated counts based on beam crossing for Sign Tracking
+# def summarize_cs_responding(raw_input_dataframe, cs_times, cs_assignments):
+#     responding_summary = {'plus': {}, 'minus': {}}
+#     for cs in ['plus', 'minus']:
+#         responding_summary[cs]['goaltrack'] = pd.DataFrame(index = range(cs_times[cs]['on'].size), columns=['Count', 'Mean_Dur'])
+#         responding_summary[cs]['signtrack'] = pd.DataFrame(index = range(cs_times[cs]['on'].size), columns=['Count', 'Mean_Dur'])
+#         for on, off, cs_num in zip(cs_times[cs]['on'], cs_times[cs]['off'], responding_summary[cs]['goaltrack'].index):
+#             cs_presentation_slice = raw_input_dataframe[(raw_input_dataframe.Evnt_Time>=on)&(raw_input_dataframe.Evnt_Time<=off)]
+#             beam_name = beam_names[int(cs_assignments[cs])-1] # Pull cs side code from cs_assignments dictionary and convert to index
+#             for behavior, input_name in zip(['goaltrack', 'signtrack'], ['Tray #1', beam_name]):
+#                 behavior_slice = cs_presentation_slice[cs_presentation_slice.Item_Name==input_name]
+#                 entries, exits = summarize_trial_behavior(behavior_slice, (on, off), input_name)
+#                 responding_summary[cs][behavior].loc[cs_num, 'Count'] = entries.size
+#                 responding_summary[cs][behavior].loc[cs_num, 'Mean_Dur'] = np.sum(exits-entries)
+#     return responding_summary
+
+
+
+# Count Sign Tracking based on touch counts
+def summarize_cs_responding_touchbased(raw_input_dataframe, cs_times, cs_assignments):
     responding_summary = {'plus': {}, 'minus': {}}
+    
+    simple_track = create_touch_tracking(raw_input_dataframe)
     for cs in ['plus', 'minus']:
         responding_summary[cs]['goaltrack'] = pd.DataFrame(index = range(cs_times[cs]['on'].size), columns=['Count', 'Mean_Dur'])
         responding_summary[cs]['signtrack'] = pd.DataFrame(index = range(cs_times[cs]['on'].size), columns=['Count', 'Mean_Dur'])
@@ -67,8 +89,32 @@ def summarize_cs_responding(raw_input_dataframe, cs_times, cs_assignments):
             cs_presentation_slice = raw_input_dataframe[(raw_input_dataframe.Evnt_Time>=on)&(raw_input_dataframe.Evnt_Time<=off)]
             beam_name = beam_names[int(cs_assignments[cs])-1] # Pull cs side code from cs_assignments dictionary and convert to index
             for behavior, input_name in zip(['goaltrack', 'signtrack'], ['Tray #1', beam_name]):
-                behavior_slice = cs_presentation_slice[cs_presentation_slice.Item_Name==input_name]
-                entries, exits = summarize_trial_behavior(behavior_slice, (on, off), input_name)
-                responding_summary[cs][behavior].loc[cs_num, 'Count'] = entries.size
-                responding_summary[cs][behavior].loc[cs_num, 'Mean_Dur'] = np.sum(exits-entries)
+                if behavior=='goaltrack':
+                    behavior_slice = cs_presentation_slice[cs_presentation_slice.Item_Name==input_name]
+                    entries, exits = summarize_trial_behavior(behavior_slice, (on, off), input_name)
+                    responding_summary[cs][behavior].loc[cs_num, 'Count'] = entries.size
+                    responding_summary[cs][behavior].loc[cs_num, 'Mean_Dur'] = np.sum(exits-entries)
+                else:
+                    touch_count = simple_track[(simple_track.Evnt_ID==31)&(simple_track.LastCrossed=='Left')&(simple_track.Evnt_Time>=on)&(simple_track.Evnt_Time<=off)].shape[0]
+                    responding_summary[cs][behavior].loc[cs_num, 'Count'] = touch_count
+
+
     return responding_summary
+
+
+# Auxilary function for determining which side a touch occurred on. 
+def create_touch_tracking(raw_input_dataframe):
+    # Create dataframe that contains touches and a LastCrossed
+    simple_track = raw_input_dataframe[(raw_input_dataframe.Evnt_ID==31)|((raw_input_dataframe.Evnt_ID==38)&(raw_input_dataframe.Item_Name.isin(['FIRBeam #1', 'RightFIRBeam #1'])))]
+    simple_track = simple_track.loc[:, ['Evnt_Time', 'Evnt_ID', 'Item_Name']]
+    simple_track['LastCrossed'] = np.empty(simple_track.shape[0])
+    simple_track.reset_index(inplace=True)
+    simple_track.drop('index', axis=1, inplace=True)
+
+    # Identify the last beam crossed for every tracked moment
+    crossings = simple_track[simple_track.Evnt_ID==38].index
+    for c_last, c_next in zip(crossings[:-1], crossings[1:]):
+        simple_track.loc[c_last:c_next, 'LastCrossed'] = 'Left' if simple_track.loc[c_last, 'Item_Name'] =='FIRBeam #1' else 'Right'
+
+
+    return simple_track
