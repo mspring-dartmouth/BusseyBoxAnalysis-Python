@@ -7,6 +7,13 @@ from busboxanalysis import get_final_values
 beam_names = ['FIRBeam #1', 'RightFIRBeam #1']
 
 def retrieve_cs_display_times(raw_input_dataframe):
+    '''
+        Identify cs on and offtimes as well as cs sides for a given animal. 
+        :param raw_input_dataframe: Dataframe of raw data produced by read_raw_file() in core functions.
+        :return cs_times: a dictionary with key: cs type, value: dictionary containing {key: on/off, value: times from raw dataframe}
+        :return dict: dictionary with key: cs type, value: side (1- Left, 2-Right)
+    '''
+
     # Determine CS+ side:
     cs_plus = get_final_values(raw_input_dataframe, ['CS_Plus']).values[0]
     cs_minus = 3-cs_plus
@@ -23,6 +30,15 @@ def retrieve_cs_display_times(raw_input_dataframe):
     return cs_times, {'plus': cs_plus, 'minus': cs_minus}
 
 def summarize_trial_behavior(trial_slice, slice_borders, target_item_name = 'Tray #1'):
+    '''
+        Retrieves Transition On and Transition Off events for an IR beam crossing of interest within a specified timeframe.  
+        :param trial_slice: section of an input dataframe with the same strucutre
+        :param slice_borders: a tuple containing cs_on and cs_off (in that order)
+        :param target_item_name: the object for which on and off times should be summarized
+        :return tuple: Tuple containing lists of entries and exits
+    '''
+
+
     entries = trial_slice[trial_slice.Evnt_ID==38].loc[:, 'Evnt_Time'].values
     exits = trial_slice[trial_slice.Evnt_ID==39].loc[:, 'Evnt_Time'].values
     
@@ -35,19 +51,24 @@ def summarize_trial_behavior(trial_slice, slice_borders, target_item_name = 'Tra
     # If either event is empty, filling in the boundary timestamp as done below will not work.
     elif min([exits.size, entries.size]) == 0:
         if exits.size == 0:
-            exits = np.array([off]) # One unended entry gets capped with the end of the CS.
+            exits = np.array([off]) # Unended entries get capped with the end of the CS.
         else:
-            entries = np.array([on]) # One headless exit is considered starting at CS on. 
+            entries = np.array([on]) # Headless exits are considered starting at CS on. 
     else:
         if exits[0] < entries[0]: # First exit is before first entry
-            entries = np.insert(entries, 0, on)
+            entries = np.insert(entries, 0, on) # First entry is CS on. 
         if entries[-1] > exits[-1]: # Last entry is after last exit
-            exits = np.append(exits, off)
+            exits = np.append(exits, off) # Last exit is CS off. 
 
+        # Verify that entries and exits are properly matched in size after the above adjustments are made. 
         if entries.size != exits.size:
+
+            # Create a series of current entries and exits ordered by time.
             start_stop_id_codes = pd.Series(index = np.concatenate([entries, exits]),
                                             data = np.concatenate([np.zeros(entries.size), np.ones(exits.size)]))
             start_stop_id_codes.sort_index(inplace=True)
+
+            # Iterate through each sequential event pair and ensure that entrances and exits alternate. 
             dupes = []
             for i, j in zip(start_stop_id_codes.index[:-1], start_stop_id_codes.index[1:]):
                 if start_stop_id_codes.loc[i] == start_stop_id_codes.loc[j]:
@@ -60,7 +81,7 @@ def summarize_trial_behavior(trial_slice, slice_borders, target_item_name = 'Tra
 
 
 
-# Deprecated counts based on beam crossing for Sign Tracking
+# Deprecated counts based on beam crossing for Sign Tracking.
 # def summarize_cs_responding(raw_input_dataframe, cs_times, cs_assignments):
 #     responding_summary = {'plus': {}, 'minus': {}}
 #     for cs in ['plus', 'minus']:
@@ -80,31 +101,54 @@ def summarize_trial_behavior(trial_slice, slice_borders, target_item_name = 'Tra
 
 # Count Sign Tracking based on touch counts
 def summarize_cs_responding(raw_input_dataframe, cs_times, cs_assignments):
+    '''
+        # Function for summarizing counts and durations of goal vs. cue approaches for each individual trial for an animal.  
+        :param raw_input_dataframe: Dataframe of raw data produced by read_raw_file() in core functions.
+        :param cs_times: dictionary created by retrieve_cs_display_times.
+        :param cs_assignments: dictionary created by retrieve_cs_display_times.
+        :return responding_summary: dictionary with key: cs, value: dictionary with {key: signtrack vs. goaltrack, value: datafram with counts and durations of approach for each trial.}
+    '''
+
     responding_summary = {'plus': {}, 'minus': {}}
     
+    # Determine side where screen touches occurred. 
     simple_track = create_touch_tracking(raw_input_dataframe)
+
+
     for cs in ['plus', 'minus']:
+        # Create separate summary dataframes for goal and sign approach. 
         responding_summary[cs]['goaltrack'] = pd.DataFrame(index = range(cs_times[cs]['on'].size), columns=['Count', 'Mean_Dur'])
         responding_summary[cs]['signtrack'] = pd.DataFrame(index = range(cs_times[cs]['on'].size), columns=['Count', 'Mean_Dur'])
         for on, off, cs_num in zip(cs_times[cs]['on'], cs_times[cs]['off'], responding_summary[cs]['goaltrack'].index):
             cs_presentation_slice = raw_input_dataframe[(raw_input_dataframe.Evnt_Time>=on)&(raw_input_dataframe.Evnt_Time<=off)]
             beam_name = beam_names[int(cs_assignments[cs])-1] # Pull cs side code from cs_assignments dictionary and convert to index
+            # Calculate goal and CS directed behaviors differently. 
             for behavior, input_name in zip(['goaltrack', 'signtrack'], ['Tray #1', beam_name]):
+                
+                # Goal tracking is performed using summarize_trial_behavior to identify transitions on and off at the Tray IR beam. 
                 if behavior=='goaltrack':
                     behavior_slice = cs_presentation_slice[cs_presentation_slice.Item_Name==input_name]
                     entries, exits = summarize_trial_behavior(behavior_slice, (on, off), input_name)
                     responding_summary[cs][behavior].loc[cs_num, 'Count'] = entries.size
                     responding_summary[cs][behavior].loc[cs_num, 'Mean_Dur'] = np.sum(exits-entries)
+                
+                # Sign tracking is quantified based on screen touches. 
                 else:
-                    touch_count = simple_track[(simple_track.Evnt_ID==31)&(simple_track.LastCrossed=='Left')&(simple_track.Evnt_Time>=on)&(simple_track.Evnt_Time<=off)].shape[0]
+                    touch_count = simple_track[(simple_track.Evnt_ID==31)&(simple_track.LastCrossed==cs_assignments[cs])&(simple_track.Evnt_Time>=on)&(simple_track.Evnt_Time<=off)].shape[0]
                     responding_summary[cs][behavior].loc[cs_num, 'Count'] = touch_count
 
 
     return responding_summary
 
 
-# Auxilary function for determining which side a touch occurred on. 
 def create_touch_tracking(raw_input_dataframe):
+    '''
+        Auxilary function for determining which side a touch occurred on. 
+        :param raw_input_dataframe: Dataframe of raw data produced by read_raw_file() in core functions.
+        :return simple_track: slice of raw_input_dataframe containing time, evnt_id, Item_Name, and the side (1 - Left, 2 - Right) of the most recently crossed FIRBeam. 
+
+    '''
+
     # Create dataframe that contains touches and a LastCrossed
     simple_track = raw_input_dataframe[(raw_input_dataframe.Evnt_ID==31)|((raw_input_dataframe.Evnt_ID==38)&(raw_input_dataframe.Item_Name.isin(['FIRBeam #1', 'RightFIRBeam #1'])))]
     simple_track = simple_track.loc[:, ['Evnt_Time', 'Evnt_ID', 'Item_Name']]
@@ -115,7 +159,5 @@ def create_touch_tracking(raw_input_dataframe):
     # Identify the last beam crossed for every tracked moment
     crossings = simple_track[simple_track.Evnt_ID==38].index
     for c_last, c_next in zip(crossings[:-1], crossings[1:]):
-        simple_track.loc[c_last:c_next, 'LastCrossed'] = 'Left' if simple_track.loc[c_last, 'Item_Name'] =='FIRBeam #1' else 'Right'
-
-
+        simple_track.loc[c_last:c_next, 'LastCrossed'] = 1 if simple_track.loc[c_last, 'Item_Name'] =='FIRBeam #1' else 2
     return simple_track
