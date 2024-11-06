@@ -81,38 +81,25 @@ def summarize_trial_behavior(trial_slice, slice_borders, target_item_name = 'Tra
 
 
 
-# Deprecated counts based on beam crossing for Sign Tracking.
-# def summarize_cs_responding(raw_input_dataframe, cs_times, cs_assignments):
-#     responding_summary = {'plus': {}, 'minus': {}}
-#     for cs in ['plus', 'minus']:
-#         responding_summary[cs]['goaltrack'] = pd.DataFrame(index = range(cs_times[cs]['on'].size), columns=['Count', 'Mean_Dur'])
-#         responding_summary[cs]['signtrack'] = pd.DataFrame(index = range(cs_times[cs]['on'].size), columns=['Count', 'Mean_Dur'])
-#         for on, off, cs_num in zip(cs_times[cs]['on'], cs_times[cs]['off'], responding_summary[cs]['goaltrack'].index):
-#             cs_presentation_slice = raw_input_dataframe[(raw_input_dataframe.Evnt_Time>=on)&(raw_input_dataframe.Evnt_Time<=off)]
-#             beam_name = beam_names[int(cs_assignments[cs])-1] # Pull cs side code from cs_assignments dictionary and convert to index
-#             for behavior, input_name in zip(['goaltrack', 'signtrack'], ['Tray #1', beam_name]):
-#                 behavior_slice = cs_presentation_slice[cs_presentation_slice.Item_Name==input_name]
-#                 entries, exits = summarize_trial_behavior(behavior_slice, (on, off), input_name)
-#                 responding_summary[cs][behavior].loc[cs_num, 'Count'] = entries.size
-#                 responding_summary[cs][behavior].loc[cs_num, 'Mean_Dur'] = np.sum(exits-entries)
-#     return responding_summary
 
 
 
 # Count Sign Tracking based on touch counts
-def summarize_cs_responding(raw_input_dataframe, cs_times, cs_assignments):
+def summarize_cs_responding(raw_input_dataframe, cs_times, cs_assignments, count_with_touches = False):
     '''
         # Function for summarizing counts and durations of goal vs. cue approaches for each individual trial for an animal.  
         :param raw_input_dataframe: Dataframe of raw data produced by read_raw_file() in core functions.
-        :param cs_times: dictionary created by retrieve_cs_display_times.
-        :param cs_assignments: dictionary created by retrieve_cs_display_times.
-        :return responding_summary: dictionary with key: cs, value: dictionary with {key: signtrack vs. goaltrack, value: datafram with counts and durations of approach for each trial.}
+        :param cs_times:            Dictionary created by retrieve_cs_display_times.
+        :param cs_assignments:      Dictionary created by retrieve_cs_display_times.
+        :param count_with_touches:  Boolean to toggle whether CS approaches are measured using screen touches or beam breaks.
+        :return responding_summary: Dictionary with key: cs, value: dictionary with {key: signtrack vs. goaltrack, value: datafram with counts and durations of approach for each trial.}
     '''
 
     responding_summary = {'plus': {}, 'minus': {}}
     
     # Determine side where screen touches occurred. 
-    simple_track = create_touch_tracking(raw_input_dataframe)
+    if count_with_touches:
+        simple_track = create_touch_tracking(raw_input_dataframe)
 
 
     for cs in ['plus', 'minus']:
@@ -126,16 +113,18 @@ def summarize_cs_responding(raw_input_dataframe, cs_times, cs_assignments):
             for behavior, input_name in zip(['goaltrack', 'signtrack'], ['Tray #1', beam_name]):
                 
                 # Goal tracking is performed using summarize_trial_behavior to identify transitions on and off at the Tray IR beam. 
-                if behavior=='goaltrack':
+                if ((behavior=='goaltrack'&count_with_touches==True) or count_with_touches==False):
                     behavior_slice = cs_presentation_slice[cs_presentation_slice.Item_Name==input_name]
                     entries, exits = summarize_trial_behavior(behavior_slice, (on, off), input_name)
                     responding_summary[cs][behavior].loc[cs_num, 'Count'] = entries.size
                     responding_summary[cs][behavior].loc[cs_num, 'Mean_Dur'] = np.sum(exits-entries)
                 
                 # Sign tracking is quantified based on screen touches. 
-                else:
+                elif (behavior=='signtrack' & count_with_touches==True):
                     touch_count = simple_track[(simple_track.Evnt_ID==31)&(simple_track.LastCrossed==cs_assignments[cs])&(simple_track.Evnt_Time>=on)&(simple_track.Evnt_Time<=off)].shape[0]
                     responding_summary[cs][behavior].loc[cs_num, 'Count'] = touch_count
+                else:
+                    raise RunTimeError
 
 
     return responding_summary
