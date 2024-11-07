@@ -44,6 +44,16 @@ def summarize_trial_behavior(trial_slice, slice_borders, target_item_name = 'Tra
     
     on, off = slice_borders
 
+
+    # In the event that the first exit corresponds to the onset of the cue, things will get hinky later one. 
+    # Fudge the timing so that an entry time prior to this exit will appear and this exit will be counted as part of an approach. 
+    try:
+        if exits[0] == on:
+            exits[0] = exits[0] + 0.01
+    except IndexError:
+        pass
+
+
     # If there are no events, skip to the end.
     if exits.size + entries.size == 0:
         pass
