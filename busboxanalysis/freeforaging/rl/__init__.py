@@ -1,5 +1,5 @@
-from ._rl import (update_value,
-		   		  make_selection,
-				  grid_search,
-				  RL_mod,
-				  calc_norm_likelihood)
+from ._rl import (RL_mod,
+				  calc_norm_likelihood,
+				  generate_transition_matrix,
+				  generate_markov_data,
+				  HMM_Fit)

@@ -1,3 +1,5 @@
+#### VERSION 0.3b  ####
+	- Implemented a suite of hidden Markov model tools in rl module. 
 #### VERSION 0.1b  ####
 	- Autoshaping module is undergoing testing to reanalyze older data. 
 #### VERSION 0.1a5 ####
