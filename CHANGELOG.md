@@ -1,3 +1,5 @@
+#### VERSION 0.4b  ####
+	- Created separate file to contain models for rl module. Also, began standardizing argument format across models to facilitate comparison across models and simplify addition of new models. 
 #### VERSION 0.3b  ####
 	- Implemented a suite of hidden Markov model tools in rl module. 
 #### VERSION 0.1b  ####

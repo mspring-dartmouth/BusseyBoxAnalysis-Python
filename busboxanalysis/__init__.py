@@ -1,4 +1,4 @@
-__version__ = '0.3b'
+__version__ = '0.4b'
 
 from ._busboxanalysis import (moving_average,
                               enumerate2,

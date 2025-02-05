@@ -3,94 +3,27 @@ import itertools
 import pandas as pd
 import random
 import warnings
+from ._models import *
 
 
 '''
     This file contains class object for model fitting of behavior
 '''
 
-#####################################################RL FUNCTIONS###########################################################
 class RL_mod(object):
     def __init__(self, animal_id, choices, outcomes):
         self.id = animal_id
         self.choices = numpy.array(choices).astype('int')
         self.outcomes = numpy.array(outcomes).astype('int')
     
-    def make_selection(self, option_values, beta=3):
-        '''
-        A choice function for 2 options based on a soft-max operation.
-        :param option_values: an array containing the expected values of the two options, [0] and [1].
-        :param beta: temperature of the soft-max operation (float). 
-                     High values produce greater exploitation of preferred options, while lower values produce exploration.
-        :return x, p: return a choice 0 or 1, and the probability associated with choosing either option (ordered 0, 1).
-        '''
-        ev = numpy.exp(beta*option_values)
-        sev = sum(numpy.exp(beta*option_values))
-        p = ev/sev
-
-        if random.random()<p[0]:
-            return 0, p
-        else:
-            return 1, p
-    
-    def update_value_dfq_static(self, qs, a, o, model_params):
-        ''' Updates action value (q) for both possible choices according to a Q-Learning model with differential forgetting
-            based on a given action and outcome in trial T. 
-        :param qs: Array. Values for both choices at trial T-1. Left side value: index 0, Right side: 1. 
-        :param a: integer. Side chosen on trial T. Left: 0, Right: 1. 
-        :param o: integer. Outcome of trial T. Reward: 1. Nothing: 0. 
-        :param model_params: tuple containing the following values:
-            a_1: float. alpha1. Forgetting rate for chosen action. High=recency bias. 
-            a_2: float. alpha2. Forgetting rate for non-selected action. 
-            k_1: float. kappa1. Strength of reward on action value. 
-            k_2: float. kappa2. Strength of omission on action value. 
-        :return new_qs: Array. Updated action values. 
-        '''
-        a_1, a_2, k_1, k_2 = model_params
-        new_qs = qs.astype('float')
-        for i in [0, 1]:
-            qi = new_qs[i]
-            if a==i:
-                if o==1:
-                    new_qs[i] = ((1-a_1) * qi) + (a_1*k_1)
-                else:
-                    new_qs[i] = (1-a_1)*qi - (a_1*k_2)
-            else:
-                new_qs[i] = (1-a_2)*qi
-        return new_qs  
-
-    def update_value_fq_static(self, qs, a, o, model_params):
-        ''' Updates action value (q) for both possible choices according to a Q-Learning model with CONSTANT forgetting
-            based on a given action and outcome in trial T. This is equivalent to dfq_static with a_1=a_2. 
-        :param qs: Array. Values for both choices at trial T-1. Left side value: index 0, Right side: 1. 
-        :param a: integer. Side chosen on trial T. Left: 0, Right: 1. 
-        :param o: integer. Outcome of trial T. Reward: 1. Nothing: 0. 
-        :param model_params: tuple containing the following values:
-            a_1: float. alpha1. Forgetting rate for all actions. 
-            k_1: float. kappa1. Strength of reward on action value. 
-            k_2: float. kappa2. Strength of omission on action value. 
-        :return new_qs: Array. Updated action values. 
-        '''
-        a_1, k_1, k_2 = model_params
-        new_qs = qs.astype('float')
-        for i in [0, 1]:
-            qi = new_qs[i]
-            if a==i:
-                if o==1:
-                    new_qs[i] = ((1-a_1) * qi) + (a_1*k_1)
-                else:
-                    new_qs[i] = (1-a_1)*qi - (a_1*k_2)
-            else:
-                new_qs[i] = (1-a_1)*qi
-        return new_qs  
-
-    
-    def calc_Qs(self, params, value_function, return_qs = False):
+    def calc_Qs(self, full_params, value_function, choice_function, use_softmax=True, return_qs = False):
         '''
             Calculates action values, choice probabilties, and the -logSum based on self.choices, self.outcomes, and 
             a given value_function with set input parameters. 
-            :param params: a tuple containing model parameters required for value_function.
+            :param params: an array containing model parameters required for value_function (elements 1 through -2), if use_softmax==True. If use_softmax==False, params only contains learning values.
+            :param use_softmax: Whether to use the inverse temperature of the softmax decision function, if using. If not, None. 
             :param value_function: Function to use for calculating Q values based on a given action and outcome.
+            :param choice_function: Function for calculating choice probability. 
             :param return_qs: Boolean. Toggles whether function will return Qs and choice probabilities or the -logSum
             :return value_history: Array. n X 2 array where n=# trials. Rows correspond to values on individual trials, 
                                    column 0 corresponds to action value for left choice, column 1 to action value for right choice.
@@ -98,21 +31,27 @@ class RL_mod(object):
             :return -logSum: A method used for assessing the best fitting parameters for a given model. 
 
         '''
-        self.current_model_params = params[:]
-        values = numpy.array([0, 0])
+        self.current_model_params = tuple(full_params[:-1]) if use_softmax else tuple(full_params)
+        decision_beta = full_params[-1] if use_softmax else full_params[-1]
+        
+        values = numpy.array([0.5, 0.5])
         self.PP = []
-        b = params[-1]
         self.value_history = numpy.zeros([self.choices.size, 2])
         for t, c, o in zip(range(self.choices.size), self.choices, self.outcomes):
-            mod_choice, p = self.make_selection(values, b)
+            mod_choice, p = choice_function(values, decision_beta)
             self.PP.append(p[c])
 
-            values = value_function(values, c, o, params[:-1])
+            values, self.current_model_params = value_function(values, c, o, self.current_model_params)
             self.value_history[t] = values
+        
+
         if return_qs:
             return self.value_history, self.PP
         else:
             return -1*numpy.log(self.PP).sum()
+
+
+
 
 def calc_norm_likelihood(predicted_probabilities):
     '''
