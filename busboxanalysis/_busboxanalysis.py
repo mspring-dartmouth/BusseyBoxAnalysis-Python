@@ -8,6 +8,27 @@ import re
     Functions that are used by other modules in this package. 
 '''
 #####################################################UTILITY FUNCTIONS###########################################################
+
+def apply_boxcar(input_signal, window=5):
+    ''' Applies a boxcar filter to an input signal. This is identical to a moving average filter for the bulk of the signal, but will differ on the tails. 
+        :param input_signal: single dimensional input on which to calculate the average. 
+        :param window: desired # of points to use in calculation of moving average. Default = 5
+        :return normed_cropped_filtfilt: averaged signal
+    '''
+
+    cutoff_point = -1*(window-1) # The output signal will be window-1 points longer than the input signal. 
+                                 # The final window-1 values of the output do not appear to be related to the input signal. 
+                                 # To be fair, the first window-1 also appear to be spurious, but at least they exist? 
+                                 # Realistically, I should look into what the shoulders of the filter response are called, 
+                                 # and whether there is a better way to apply this. 
+    filt_window = scipy.signal.windows.boxcar(window)
+    norm_constant = filt_window.sum()
+    filt_output = scipy.signal.convolve(input_signal, filt_window)
+    normed_cropped_filtfilt = filt_output[:cutoff_point]/norm_constant
+
+    return normed_cropped_filtfilt
+    
+
 def moving_average(a, n=5, pad_leading_zeros=True) :
     '''Calculates a moving average on single dimensional input using order "n".
        :param a: single dimensional input on which to calculate average.
