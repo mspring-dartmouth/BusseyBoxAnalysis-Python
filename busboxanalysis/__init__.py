@@ -1,6 +1,7 @@
 __version__ = '0.4b'
 
-from ._busboxanalysis import (moving_average,
+from ._busboxanalysis import (apply_boxcar,
+                              moving_average,
                               enumerate2,
                               enumerated_product,
                               read_raw_file,

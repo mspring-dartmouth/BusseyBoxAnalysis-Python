@@ -100,3 +100,83 @@ def concatenate_behavioral_days(animal_dictionary, dates, return_absolute_for_ri
         block_history.extend(func_return[2][smooth_order-1:])
     trials = np.arange(1, len(choice_history)+1)
     return trials, choice_history, outcome_history, block_history
+
+
+
+
+##### TODO
+
+def calculate_beh_probs_around_switch(choice_history, block_history, high_prob_value):
+    switch_points = np.diff(block_history, prepend=block_history[0])
+    switch_to_high, = np.where(switch_points>0)
+    switch_to_low, = np.where(switch_points<0)
+
+    if switch_to_high.size + switch_to_low.size == 0:
+        if min(block_history) == high_prob_value:
+            # There were only trials were the right_side_prob was high. 
+            # So, the last 20 trials of the session are equivalent to 
+            # a switch_to_low:
+            switch_to_low = np.array([len(block_history)-1])
+        else:
+            switch_to_high = np.array([len(block_history)-1])
+            
+    pct_optimal_choice = np.zeros([switch_to_high.size+switch_to_low.size, 2])
+    choice_history = np.array(choice_history)
+    pad_len = 40
+    paddedchoice_history = np.pad(choice_history.astype('float'), 40, constant_values=np.nan)
+    switch_num = 0
+    for i in switch_to_low+pad_len:
+        pct_optimal_choice[switch_num] = np.nanmean(paddedchoice_history[i-20:i+20].reshape([2, -1]), axis=1)
+        switch_num+=1
+        # % is % of right-side choice, which was the high-prob side pre-switch
+    for i in switch_to_high+pad_len:
+        pct_optimal_choice[switch_num] = 1 - np.nanmean(paddedchoice_history[i-20:i+20].reshape([2, -1]), axis=1)
+        switch_num+=1
+        # % is % of left-side choice, which was the high-prob side pre-switch
+    
+    return pct_optimal_choice
+    
+
+
+def slice_beh_around_switch(choice_history, block_history, high_prob_value):
+    switch_points = np.diff(block_history, prepend=block_history[0])
+    switch_to_high, = np.where(switch_points>0)
+    switch_to_low, = np.where(switch_points<0)
+
+    if switch_to_high.size + switch_to_low.size == 0:
+        if min(block_history) == high_prob_value:
+            # There were only trials were the right_side_prob was high. 
+            # So, the last 20 trials of the session are equivalent to 
+            # a switch_to_low:
+            switch_to_low = np.array([len(block_history)-1])
+        else:
+            switch_to_high = np.array([len(block_history)-1])
+            
+    behavior_slice = np.zeros([switch_to_high.size+switch_to_low.size, 40])
+    choice_history = np.array(choice_history)
+    pad_len = 40
+    paddedchoice_history = np.pad(choice_history.astype('float'), 40, constant_values=np.nan)
+
+    switch_num = 0
+    for i in switch_to_low+pad_len:
+        behavior_slice[switch_num] = paddedchoice_history[i-20:i+20]
+        switch_num+=1
+        # Choice behavior around switch to right side being the low-probability. 1 = Right side choice. 
+    for i in switch_to_high+pad_len:
+        behavior_slice[switch_num] = abs(1 - paddedchoice_history[i-20:i+20])
+        switch_num+=1
+        # Choice behavior around switch to right side being the high-probability. 1 = left side choice. 
+    
+    return behavior_slice
+    
+
+def calculate_percent_optimal_choice(choice_history, block_history, high_prob_value):
+    choice_history = np.array(choice_history)
+    block_history = np.array(block_history)
+    
+    right_side_high_trials = block_history==high_prob_value
+    left_side_high_trials = block_history != high_prob_value
+    
+    n_optimal_choice_trials = np.sum(choice_history[right_side_high_trials] == 1) + np.sum(choice_history[left_side_high_trials] == 0)
+    
+    return n_optimal_choice_trials / choice_history.size
