@@ -1,3 +1,5 @@
+#### VERSION 1.0b  ####
+    - Updated README in anticipation of making repository public. 
 #### VERSION 0.4b  ####
 	- Created separate file to contain models for rl module. Also, began standardizing argument format across models to facilitate comparison across models and simplify addition of new models. 
 #### VERSION 0.3b  ####

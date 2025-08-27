@@ -1,4 +1,4 @@
-__version__ = '0.4b'
+__version__ = '1.0b'
 
 from ._busboxanalysis import (apply_boxcar,
                               moving_average,
@@ -13,3 +13,4 @@ from ._busboxanalysis import (apply_boxcar,
 from . import freeforaging
 from . import fivechoice
 from . import autoshape
+from . import gonogo
