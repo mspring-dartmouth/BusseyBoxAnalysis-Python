@@ -1,1 +1,1 @@
-from ._gonogo import (basemetrics)
+from ._gonogo import (base_metrics)
